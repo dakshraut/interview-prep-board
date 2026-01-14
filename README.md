@@ -369,6 +369,4 @@ For issues, feature requests, or questions:
 - User authentication
 - Improved error handling and validation
 
----
 
-**Made with ❤️ for interview preparation**
