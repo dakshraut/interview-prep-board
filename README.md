@@ -76,14 +76,7 @@ cp .env.example .env
 ```
 
 Edit `.env` and add your MongoDB URI and JWT secret:
-```env
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/interview-prep-board
-JWT_SECRET=your_super_secret_jwt_key_change_this_in_production
-PORT=5000
-NODE_ENV=development
-FRONTEND_URL=http://localhost:5173
 ```
-
 4. **Start the server:**
 ```bash
 # Development mode with auto-reload
