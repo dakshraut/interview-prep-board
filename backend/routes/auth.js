@@ -1,6 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const User = require('../models/user');
+const User = require('../models/User'); 
 const { asyncHandler, AppError } = require('../utils/errorHandler');
 const { validateEmail, validatePassword, validateUsername } = require('../utils/validators');
 const router = express.Router();
