@@ -10,6 +10,7 @@ const taskRoutes = require('./routes/tasks');
 const progressRoutes = require('./routes/progress');
 const taskTypesRoutes = require('./routes/taskTypes');
 const { errorHandlerMiddleware } = require('./utils/errorHandler');
+const healthRoutes = require('./routes/health');
 
 dotenv.config();
 
@@ -50,6 +51,7 @@ app.use('/api/boards', boardRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/task-types', taskTypesRoutes);
+app.use('/api/health', healthRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
