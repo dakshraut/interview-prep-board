@@ -90,6 +90,14 @@ router.post('/', authenticate, upload.single('attachment'), async (req, res) => 
     let taskData = req.body.data ? JSON.parse(req.body.data) : req.body;
     const { boardId } = taskData;
     
+    if (!boardId) {
+      return res.status(400).json({ error: 'Board ID is required' });
+    }
+
+    if (!taskData.title || !taskData.title.trim()) {
+      return res.status(400).json({ error: 'Task title is required' });
+    }
+    
     // Check if user has access to board
     const board = await Board.findOne({
       _id: boardId,
@@ -112,10 +120,19 @@ router.post('/', authenticate, upload.single('attachment'), async (req, res) => 
 
     // Prepare task data
     const task = new Task({
-      ...taskData,
+      title: taskData.title.trim(),
+      description: taskData.description || '',
+      type: taskData.type || 'General',
+      difficulty: taskData.difficulty || 'Medium',
+      priority: taskData.priority || 'Medium',
+      company: taskData.company || '',
       board: boardId,
       createdBy: req.userId,
       order,
+      column: taskData.column || 'todo',
+      status: taskData.status || 'Not Started',
+      dueDate: taskData.dueDate || null,
+      estimatedTime: taskData.estimatedTime || 0,
       tags: taskData.tags ? (Array.isArray(taskData.tags) ? taskData.tags : taskData.tags.split(',').map(t => t.trim())) : [],
       assignedTo: taskData.assignedTo ? (Array.isArray(taskData.assignedTo) ? taskData.assignedTo.map(userId => ({ user: userId })) : []) : []
     });
@@ -147,7 +164,7 @@ router.post('/', authenticate, upload.single('attachment'), async (req, res) => 
     res.status(201).json(task);
   } catch (error) {
     console.error('Create task error:', error);
-    res.status(500).json({ error: 'Failed to create task' });
+    res.status(500).json({ error: error.message || 'Failed to create task' });
   }
 });
 

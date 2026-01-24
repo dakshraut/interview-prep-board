@@ -93,7 +93,7 @@ const taskSchema = new mongoose.Schema({
   }],
   status: {
     type: String,
-    enum: ['Not Started', 'In Progress', 'Blocked', 'Completed', 'On Hold', 'Cancelled'],
+    enum: ['Not Started', 'In Progress', 'In Review', 'Blocked', 'Completed', 'On Hold', 'Cancelled'],
     default: 'Not Started'
   },
   labels: [{

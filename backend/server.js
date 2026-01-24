@@ -17,7 +17,12 @@ const app = express();
 const server = http.createServer(app);
 
 // Allowed origins for CORS
-const allowedOrigins = [
+const allowedOrigins = process.env.NODE_ENV === 'production' 
+  ? [
+      'https://your-app-name.railway.app',
+      'https://*.railway.app'
+    ]
+    :[
   'http://localhost:5173',
   'http://localhost:3000',
   'http://127.0.0.1:5173',
