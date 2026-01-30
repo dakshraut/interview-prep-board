@@ -889,4 +889,128 @@ router.get('/board/:boardId/stats', authenticate, async (req, res) => {
   }
 });
 
+// Assign member to task
+router.post('/:taskId/assign', authenticate, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { memberId } = req.body;
+
+    if (!memberId) {
+      return res.status(400).json({ error: 'Member ID is required' });
+    }
+
+    const task = await Task.findById(taskId);
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    // Check if user has access to the board
+    const board = await Board.findOne({
+      _id: task.board,
+      'members.user': req.userId
+    });
+
+    if (!board) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Check if member is part of the board
+    const isMember = board.members.some(m => m.user.toString() === memberId);
+    if (!isMember) {
+      return res.status(400).json({ error: 'User is not a member of this board' });
+    }
+
+    // Check if already assigned
+    const alreadyAssigned = task.assignedTo.some(a => a.user.toString() === memberId);
+    if (alreadyAssigned) {
+      return res.status(400).json({ error: 'Member already assigned to this task' });
+    }
+
+    // Add member to assignedTo
+    task.assignedTo.push({ user: memberId });
+    await task.save();
+
+    // Populate and return
+    await task.populate('assignedTo.user', 'username email avatar');
+
+    console.log(`Task ${taskId} assigned to member ${memberId}`);
+    res.json({ success: true, task });
+  } catch (error) {
+    console.error('Assign member error:', error);
+    res.status(500).json({ error: 'Failed to assign member to task' });
+  }
+});
+
+// Remove member from task
+router.delete('/:taskId/assign/:memberId', authenticate, async (req, res) => {
+  try {
+    const { taskId, memberId } = req.params;
+
+    const task = await Task.findById(taskId);
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    // Check if user has access to the board
+    const board = await Board.findOne({
+      _id: task.board,
+      'members.user': req.userId
+    });
+
+    if (!board) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Remove member from assignedTo
+    task.assignedTo = task.assignedTo.filter(a => a.user.toString() !== memberId);
+    await task.save();
+
+    // Populate and return
+    await task.populate('assignedTo.user', 'username email avatar');
+
+    console.log(`Member ${memberId} removed from task ${taskId}`);
+    res.json({ success: true, task });
+  } catch (error) {
+    console.error('Remove member error:', error);
+    res.status(500).json({ error: 'Failed to remove member from task' });
+  }
+});
+
+// Get board members for task assignment
+router.get('/:taskId/board-members', authenticate, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+
+    const task = await Task.findById(taskId);
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    const board = await Board.findById(task.board).populate('members.user', 'username email avatar _id');
+    if (!board) {
+      return res.status(404).json({ error: 'Board not found' });
+    }
+
+    // Check access
+    const hasAccess = board.members.some(m => m.user._id.toString() === req.userId);
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    res.json({
+      success: true,
+      members: board.members.map(m => ({
+        _id: m.user._id,
+        username: m.user.username,
+        email: m.user.email,
+        avatar: m.user.avatar,
+        role: m.role
+      }))
+    });
+  } catch (error) {
+    console.error('Get board members error:', error);
+    res.status(500).json({ error: 'Failed to fetch board members' });
+  }
+});
+
 module.exports = router;

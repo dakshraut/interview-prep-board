@@ -9,13 +9,27 @@ export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    // Initialize socket connection
+    // Get tokens from localStorage
+    const token = localStorage.getItem('token');
+    const refreshToken = localStorage.getItem('refreshToken');
+    
+    if (!token || !refreshToken) {
+      console.log('⚠️ No authentication tokens available for Socket.IO');
+      return;
+    }
+
+    // Initialize socket connection with authentication
     const newSocket = io('http://localhost:5000', {
       withCredentials: true,
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionAttempts: 5,
+      reconnectionAttempts: 10,
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      auth: {
+        token: token,
+        refreshToken: refreshToken
+      }
     });
 
     // Connection event handlers
@@ -24,7 +38,10 @@ export const SocketProvider = ({ children }) => {
     });
 
     newSocket.on('connect_error', (error) => {
-      console.error('❌ Socket.IO connection error:', error);
+      console.error('❌ Socket.IO connection error:', error.message);
+      
+      // If token expired, the API interceptor will handle refresh
+      // and the socket will reconnect with new token on next attempt
     });
 
     newSocket.on('disconnect', (reason) => {
@@ -33,6 +50,14 @@ export const SocketProvider = ({ children }) => {
 
     newSocket.on('error', (error) => {
       console.error('❌ Socket.IO error:', error);
+    });
+
+    // Listen for authentication errors and trigger re-auth
+    newSocket.on('auth_error', (error) => {
+      console.error('❌ Socket authentication error:', error);
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      window.location.href = '/login';
     });
 
     setSocket(newSocket);

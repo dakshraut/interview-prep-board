@@ -11,6 +11,22 @@ const api = axios.create({
   }
 });
 
+// Flag to prevent multiple token refresh requests
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  
+  failedQueue = [];
+};
+
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
@@ -25,7 +41,7 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor
+// Response interceptor with token refresh logic
 api.interceptors.response.use(
   (response) => {
     // Normalize response format - extract data if it's in {success, data} format
@@ -37,18 +53,69 @@ api.interceptors.response.use(
     }
     return response;
   },
-  (error) => {
+  async (error) => {
     const status = error.response?.status;
     const message = error.response?.data?.error || error.message;
+    const originalRequest = error.config;
 
-    // Handle specific error cases
-    if (status === 401) {
-      // Unauthorized - token expired or invalid
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
-      toast.error('Your session has expired. Please login again.');
-    } else if (status === 403) {
+    // Handle 401 - Try to refresh token
+    if (status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise(function (resolve, reject) {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(token => {
+            originalRequest.headers['Authorization'] = `Bearer ${token}`;
+            return api(originalRequest);
+          })
+          .catch(err => {
+            return Promise.reject(err);
+          });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const refreshToken = localStorage.getItem('refreshToken');
+        
+        if (!refreshToken) {
+          throw new Error('No refresh token available');
+        }
+
+        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+          refreshToken
+        });
+
+        if (response.data.success) {
+          const { token } = response.data;
+          localStorage.setItem('token', token);
+          
+          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          originalRequest.headers['Authorization'] = `Bearer ${token}`;
+          
+          processQueue(null, token);
+          
+          return api(originalRequest);
+        }
+      } catch (err) {
+        processQueue(err, null);
+        
+        // Refresh failed - logout user
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        toast.error('Session expired. Please login again.');
+        
+        return Promise.reject(err);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    // Handle other error cases
+    if (status === 403) {
       toast.error('You do not have permission to perform this action');
     } else if (status === 404) {
       toast.error('Resource not found');

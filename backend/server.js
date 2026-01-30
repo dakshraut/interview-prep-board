@@ -53,7 +53,10 @@ const io = new Server(server, {
     credentials: true
   },
   transports: ['websocket', 'polling'],
-  allowEIO3: true
+  allowEIO3: true,
+  auth: {
+    rejectUnauthorized: false
+  }
 });
 
 // Body parsing middleware
@@ -175,9 +178,29 @@ app.get('/', (req, res) => {
   });
 });
 
+// WebSocket authentication middleware
+io.use((socket, next) => {
+  try {
+    const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      console.warn(`⚠️ Socket ${socket.id} connection attempt without token`);
+      return next(new Error('Authentication required'));
+    }
+    
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.userId = decoded.userId;
+    next();
+  } catch (error) {
+    console.error(`❌ Socket ${socket.id} authentication failed:`, error.message);
+    next(new Error('Invalid or expired token'));
+  }
+});
+
 // WebSocket connections
 io.on('connection', (socket) => {
-  console.log('🔌 New client connected:', socket.id);
+  console.log('🔌 New client connected:', socket.id, '(userId:', socket.userId, ')');
 
   // Handle board joining
   socket.on('joinBoard', (boardId) => {

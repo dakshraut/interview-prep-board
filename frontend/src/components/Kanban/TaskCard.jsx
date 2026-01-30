@@ -44,9 +44,11 @@ import {
   Warning,
   CalendarToday,
   Alarm,
-  FileCopy
+  FileCopy,
+  PersonAdd
 } from '@mui/icons-material';
 import api from '../../services/api';
+import TaskMembersDialog from './TaskMembersDialog';
 
 const TaskCard = ({ task, onUpdate, style }) => {
   const {
@@ -61,6 +63,8 @@ const TaskCard = ({ task, onUpdate, style }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [openEdit, setOpenEdit] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
+  const [openMembers, setOpenMembers] = useState(false);
+  const [taskData, setTaskData] = useState(task);
   const [editForm, setEditForm] = useState({
     title: task.title,
     description: task.description,
@@ -448,6 +452,13 @@ const TaskCard = ({ task, onUpdate, style }) => {
           <Edit fontSize="small" sx={{ mr: 1 }} />
           Edit Task
         </MenuItem>
+        <MenuItem onClick={() => {
+          handleMenuClose();
+          setOpenMembers(true);
+        }}>
+          <PersonAdd fontSize="small" sx={{ mr: 1 }} />
+          Manage Members
+        </MenuItem>
         <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
           <Delete fontSize="small" sx={{ mr: 1 }} />
           Delete Task
@@ -633,6 +644,17 @@ const TaskCard = ({ task, onUpdate, style }) => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Task Members Dialog */}
+      <TaskMembersDialog
+        open={openMembers}
+        onClose={() => setOpenMembers(false)}
+        taskId={task._id}
+        assignedMembers={taskData.assignedTo || []}
+        onMembersChange={() => {
+          onUpdate();
+        }}
+      />
     </>
   );
 };
